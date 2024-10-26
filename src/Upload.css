@@ -1,0 +1,35 @@
+/* Upload.css */
+
+.button-custom {
+  background-color: #2e2e2e;
+  border: 0 solid #444;
+  border-radius: 1.5rem;
+  box-sizing: border-box;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-block;
+  font-family: "Basier circle", -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 1rem 1.6rem;
+  text-align: center;
+  text-decoration: none;
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.25);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.button-custom:hover {
+  background-color: #1e293b; /* Darker background on hover */
+  color: #ffffff; /* Ensure text remains white */
+}
+
+@media (min-width: 768px) {
+  .button-custom {
+    font-size: 1.125rem;
+    padding: 1rem 2rem;
+  }
+}
