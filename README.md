@@ -68,3 +68,15 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+
+# Blank `.env` File
+
+```
+REACT_APP_AWS_ACCESS_KEY_ID=
+REACT_APP_AWS_SECRET_ACCESS_KEY=
+REACT_APP_AWS_SESSION_TOKEN=
+REACT_APP_AWS_REGION=
+REACT_APP_AWS_ACCOUNT_ID=
+REACT_APP_S3_BUCKET_NAME=
+```
