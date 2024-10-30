@@ -10,17 +10,17 @@ function ExternalPackage() {
   const [version2, setVersion2] = useState('');
   const [version3, setVersion3] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(''); // State for success message
   const [isDragging, setIsDragging] = useState(false);
 
-  // S3 configuration
+  // S3 configuration using environment variables
   const S3_BUCKET = process.env.REACT_APP_S3_BUCKET_NAME;
-  const REGION = process.env.REACT_APP_AWS_REGION;
+  const REGION = process.env.REACT_APP_AWS_REGION;  
 
-  // Configure AWS with credentials and region
+  // Configure AWS with IAM credentials
   AWS.config.update({
-    accessKeyId: process.env.REACT_APP_AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.REACT_APP_AWS_SECRET_ACCESS_KEY,
-    sessionToken: process.env.REACT_APP_AWS_SESSION_TOKEN,
+    accessKeyId: process.env.REACT_APP_S3_IAM_ACCESS_KEY_ID,
+    secretAccessKey: process.env.REACT_APP_S3_IAM_SECRET_KEY,
     region: REGION,
   });
 
@@ -36,26 +36,31 @@ function ExternalPackage() {
   const uploadFile = async () => {
     if (!zipFile) {
       setError('Please upload a zip file.');
+      setSuccess('');
       return;
     }
 
     if (!packageName.trim()) {
       setError('Please enter a package name.');
+      setSuccess('');
       return;
     }
 
     if (!packageLink.trim()) {
       setError('Please enter a package link.');
+      setSuccess('');
       return;
     }
 
     if (!isValidGithubLink(packageLink.trim())) {
       setError('Please enter a valid GitHub link.');
+      setSuccess('');
       return;
     }
 
     if (!version1 || !version2 || !version3) {
       setError('Please enter a valid version number.');
+      setSuccess('');
       return;
     }
 
@@ -65,6 +70,7 @@ function ExternalPackage() {
       !Number.isInteger(Number(version3))
     ) {
       setError('Version numbers must be integers.');
+      setSuccess('');
       return;
     }
 
@@ -81,62 +87,18 @@ function ExternalPackage() {
     // Uploading file to S3
     try {
       await s3.putObject(params).promise();
-      alert('File uploaded successfully.');
+      setSuccess('File uploaded successfully.');
+      setError(''); // Clear any previous error message
       setZipFile(null);
       setPackageName('');
       setPackageLink('');
       setVersion1('');
       setVersion2('');
       setVersion3('');
-      setError('');
     } catch (err) {
       console.error(err);
       setError('File upload failed.');
-    }
-  };
-
-  // Function to delete file from S3
-  const deleteFile = async () => {
-    if (!packageName.trim()) {
-      setError('Please enter the package name of the file to delete.');
-      return;
-    }
-
-    if (!version1 || !version2 || !version3) {
-      setError('Please enter the version number of the file to delete.');
-      return;
-    }
-
-    if (
-      !Number.isInteger(Number(version1)) ||
-      !Number.isInteger(Number(version2)) ||
-      !Number.isInteger(Number(version3))
-    ) {
-      setError('Version numbers must be integers.');
-      return;
-    }
-
-    // Sanitize packageName to match the one used during upload
-    const sanitizedPackageName = packageName.trim().replace(/[^a-zA-Z0-9\-_.]/g, '_');
-
-    const params = {
-      Bucket: S3_BUCKET,
-      Key: `${sanitizedPackageName}/v${version1}.${version2}.${version3}/package.zip`,
-    };
-
-    // Deleting file from S3
-    try {
-      await s3.deleteObject(params).promise();
-      alert('File deleted successfully.');
-      setZipFile(null);
-      setPackageName('');
-      setVersion1('');
-      setVersion2('');
-      setVersion3('');
-      setError('');
-    } catch (err) {
-      console.error(err);
-      setError('File deletion failed.');
+      setSuccess(''); // Clear success message on failure
     }
   };
 
@@ -151,6 +113,7 @@ function ExternalPackage() {
       setError('');
     } else {
       setError('Please upload a valid zip file.');
+      setSuccess('');
     }
   };
 
@@ -232,9 +195,9 @@ function ExternalPackage() {
           </div>
         </div>
         {error && <p className="error">{error}</p>}
+        {success && <p className="success">{success}</p>} {/* Success message in green */}
         <div className="button-group">
           <button onClick={uploadFile} type="button">Submit</button>
-          <button onClick={deleteFile} type="button" className="delete-button">Delete</button>
         </div>
       </form>
     </div>

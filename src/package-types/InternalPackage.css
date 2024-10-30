@@ -11,6 +11,8 @@ body {
     margin: 0 auto;
     padding: 20px;
   }
+
+
   
   h2 {
     text-align: center;
@@ -132,3 +134,9 @@ body {
     text-align: center;
     font-weight: bold;
   }  
+  .success {
+    color: green;
+    text-align: center;
+    font-weight: bold;
+  }
+  
