@@ -10,14 +10,13 @@ function ExternalPackage() {
   const [version2, setVersion2] = useState('');
   const [version3, setVersion3] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(''); // State for success message
+  const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // Loading state
   const [isDragging, setIsDragging] = useState(false);
 
-  // S3 configuration using environment variables
   const S3_BUCKET = process.env.REACT_APP_S3_BUCKET_NAME;
-  const REGION = process.env.REACT_APP_AWS_REGION;  
+  const REGION = process.env.REACT_APP_AWS_REGION;
 
-  // Configure AWS with IAM credentials
   AWS.config.update({
     accessKeyId: process.env.REACT_APP_S3_IAM_ACCESS_KEY_ID,
     secretAccessKey: process.env.REACT_APP_S3_IAM_SECRET_KEY,
@@ -26,13 +25,11 @@ function ExternalPackage() {
 
   const s3 = new AWS.S3();
 
-  // Function to validate GitHub link
   const isValidGithubLink = (url) => {
     const regex = /^https:\/\/github\.com\/.+\/.+/;
     return regex.test(url);
   };
 
-  // Function to upload file to S3
   const uploadFile = async () => {
     if (!zipFile) {
       setError('Please upload a zip file.');
@@ -74,21 +71,20 @@ function ExternalPackage() {
       return;
     }
 
-    // Sanitize packageName to remove invalid S3 key characters
     const sanitizedPackageName = packageName.trim().replace(/[^a-zA-Z0-9\-_.]/g, '_');
-
-    // File parameters
     const params = {
       Bucket: S3_BUCKET,
       Key: `${sanitizedPackageName}/v${version1}.${version2}.${version3}/package.zip`,
       Body: zipFile,
     };
 
-    // Uploading file to S3
+    setIsLoading(true); // Start loading
+    setError('');
+    setSuccess('');
+
     try {
       await s3.putObject(params).promise();
       setSuccess('File uploaded successfully.');
-      setError(''); // Clear any previous error message
       setZipFile(null);
       setPackageName('');
       setPackageLink('');
@@ -98,7 +94,8 @@ function ExternalPackage() {
     } catch (err) {
       console.error(err);
       setError('File upload failed.');
-      setSuccess(''); // Clear success message on failure
+    } finally {
+      setIsLoading(false); // End loading
     }
   };
 
@@ -195,9 +192,12 @@ function ExternalPackage() {
           </div>
         </div>
         {error && <p className="error">{error}</p>}
-        {success && <p className="success">{success}</p>} {/* Success message in green */}
+        {success && <p className="success">{success}</p>}
+        {isLoading && <p>Uploading...</p>}
         <div className="button-group">
-          <button onClick={uploadFile} type="button">Submit</button>
+          <button onClick={uploadFile} type="button" disabled={isLoading}>
+            {'Submit'}
+          </button>
         </div>
       </form>
     </div>

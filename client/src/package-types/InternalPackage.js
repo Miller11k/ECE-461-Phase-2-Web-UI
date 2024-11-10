@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import AWS from "aws-sdk";
-import './InternalPackage.css'; // Import the CSS file
+import './InternalPackage.css';
 
 function InternalPackage() {
   const [zipFile, setZipFile] = useState(null);
@@ -9,14 +9,13 @@ function InternalPackage() {
   const [version2, setVersion2] = useState('');
   const [version3, setVersion3] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(''); // New state for success message
+  const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // New loading state
   const [isDragging, setIsDragging] = useState(false);
 
-  // S3 configuration
   const S3_BUCKET = process.env.REACT_APP_S3_BUCKET_NAME;
   const REGION = process.env.REACT_APP_AWS_REGION;
 
-  // Configure AWS with IAM credentials
   AWS.config.update({
     accessKeyId: process.env.REACT_APP_S3_IAM_ACCESS_KEY_ID,
     secretAccessKey: process.env.REACT_APP_S3_IAM_SECRET_KEY,
@@ -62,10 +61,13 @@ function InternalPackage() {
       Body: zipFile,
     };
 
+    setIsLoading(true); // Start loading
+    setError('');
+    setSuccess('');
+
     try {
       await s3.putObject(params).promise();
-      setSuccess('File uploaded successfully.'); // Set success message
-      setError(''); // Clear error message
+      setSuccess('File uploaded successfully.');
       setZipFile(null);
       setPackageName('');
       setVersion1('');
@@ -74,7 +76,8 @@ function InternalPackage() {
     } catch (err) {
       console.error(err);
       setError('File upload failed.');
-      setSuccess('');
+    } finally {
+      setIsLoading(false); // End loading
     }
   };
 
@@ -162,9 +165,12 @@ function InternalPackage() {
           </div>
         </div>
         {error && <p className="error">{error}</p>}
-        {success && <p className="success">{success}</p>} {/* Success message in green */}
+        {success && <p className="success">{success}</p>}
+        {isLoading && <p>Uploading...</p>} {/* Show loading message */}
         <div className="button-group">
-          <button onClick={uploadFile} type="button">Submit</button>
+          <button onClick={uploadFile} type="button" disabled={isLoading}>
+            {'Submit'}
+          </button>
         </div>
       </form>
     </div>
