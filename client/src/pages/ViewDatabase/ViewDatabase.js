@@ -1,5 +1,5 @@
 import React from 'react';
-import './App.css'; // Make sure to include this file for styling
+import 'App.css'; // Make sure to include this file for styling
 
 const DatabasePage = () => {
   return (
