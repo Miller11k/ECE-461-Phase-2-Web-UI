@@ -134,8 +134,8 @@ The `.env` file is essential for storing IAM credentials required for consistent
 2. **Copy the Template**: Paste the following template into your `.env` file.
 
     ```
-    REACT_APP_S3_IAM_ACCESS_KEY_ID=
-    REACT_APP_S3_IAM_SECRET_KEY=
+    REACT_APP_IAM_ACCESS_KEY_ID=
+    REACT_APP_IAM_SECRET_KEY=
 
     REACT_APP_S3_BUCKET_NAME=
     REACT_APP_AWS_REGION=

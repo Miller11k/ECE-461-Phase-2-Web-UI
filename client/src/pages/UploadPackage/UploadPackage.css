@@ -35,8 +35,8 @@ html, body {
   font-family: 'Roboto', sans-serif;
   font-size: 3rem;
   color: #e3e3e3;
-  margin-bottom: 40px; /* Controls space between header and box */
-  margin-top: -50px; /* Move the header up */
+  margin-bottom: 20px; /* Controls space between header and box */
+  margin-top: 100px;
 }
 
 .login-box {

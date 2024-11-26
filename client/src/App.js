@@ -1,122 +1,209 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Login from './pages/Login/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Upload from './pages/UploadPackage/UploadPackage';
 import ViewDatabase from './pages/ViewDatabase/ViewDatabase';
-import DownloadPackage from './pages/DownloadPackage/DownloadPackage';
+import DownloadPackage from './pages/SearchForPackage/searchForPackage';
 import ExternalPackage from './pages/UploadPackage/package-types/ExternalPackage';
 import InternalPackage from './pages/UploadPackage/package-types/InternalPackage';
-import Account from './pages/Account/Account'; // New import for Account page
+import ViewPackage from './pages/ViewPage/ViewPackage';
+import AdminPage from './pages/AdminPage/AdminPage';
+import Account from './pages/Account/Account';
+import ResetRegistry from './pages/ResetRegistry/resetRegistry';
+import CreateUser from './pages/CreateUser/createUser';
 
 const apiPort = process.env.REACT_APP_API_PORT || 4010;
-const apiLink = process.env.REACT_APP_API_URL || 'http://localhost';  
+const apiLink = process.env.REACT_APP_API_URL || 'http://localhost';
 
 const App = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem('isLoggedIn') === 'true';
-  });
-  const [userDetails, setUserDetails] = useState(() => {
-    const storedUser = localStorage.getItem('userDetails');
-    return storedUser ? JSON.parse(storedUser) : null;
-  });
+  const [token, setToken] = useState(null);
 
-  const handleLogin = (details) => {
-    setIsLoggedIn(true);
-    setUserDetails(details);
+  useEffect(() => {
+    const storedToken = localStorage.getItem('authToken');
+    if (storedToken) {
+      setToken(storedToken);
+    }
+  }, []);
+
+  const handleLogin = (newToken) => {
+    setToken(newToken);
+    localStorage.setItem('authToken', newToken);
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    localStorage.removeItem('authToken');
+  };
   
-    // Store details in localStorage
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('userDetails', JSON.stringify(details));
-  };  
 
-  const handleLogout = async (providedUsername) => {
-    const usernameToUse = providedUsername || userDetails?.username;
-
+  const validateToken = async () => {
     try {
-      await fetch(`${apiLink}:${apiPort}/delete-token`, {
-          method: 'DELETE',
-          headers: {
-              'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-              username: usernameToUse,
-              token: userDetails?.token,
-          }),
+      const response = await fetch(`${apiLink}:${apiPort}/get-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
       });
-  } catch (error) {
-      console.error('Error during logout:', error);
-  }
-  
 
-    // Clear state and localStorage
-    setIsLoggedIn(false);
-    setUserDetails(null);
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userDetails');
-}; 
+      if (!response.ok) {
+        console.error(`API error: ${response.status} - ${response.statusText}`);
+        return false;
+      }
+
+      const result = await response.json();
+
+      return result.success;
+    } catch (error) {
+      console.error('Token validation error:', error);
+      return false;
+    }
+  };
+
+  const isAdmin = async () => {
+    try {
+      const response = await fetch(`${apiLink}:${apiPort}/get-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!response.ok) {
+        console.error(`API error: ${response.status} - ${response.statusText}`);
+        return false;
+      }
+
+      const result = await response.json();
+
+      return result.success && result.isAdmin;
+    } catch (error) {
+      console.error('Admin validation error:', error);
+      return false;
+    }
+  };
+
+  const ProtectedRoute = ({ children, validateToken }) => {
+    const [isValid, setIsValid] = useState(null);
+
+    useEffect(() => {
+      const validate = async () => {
+        const storedToken = localStorage.getItem('authToken');
+        if (!storedToken) {
+          setIsValid(false);
+          return;
+        }
+
+        const valid = await validateToken();
+        setIsValid(valid);
+      };
+      validate();
+    }, [validateToken]);
+
+    if (isValid === null) {
+      return <div>Loading...</div>;
+    }
+
+    return isValid ? children : <Navigate to="/" />;
+  };
+
+  const AdminProtectedRoute = ({ children, isAdmin }) => {
+    const [isValidAdmin, setIsValidAdmin] = useState(null);
+
+    useEffect(() => {
+      const validate = async () => {
+        const admin = await isAdmin();
+        setIsValidAdmin(admin);
+      };
+      validate();
+    }, [isAdmin]);
+
+    if (isValidAdmin === null) {
+      return <div>Loading...</div>;
+    }
+
+    return isValidAdmin ? children : <Navigate to="/dashboard" />;
+  };
 
   return (
     <Router>
       <Routes>
-        {/* Public Route */}
-        <Route
-          path="/"
-          element={
-            isLoggedIn ? <Navigate to="/dashboard" /> : <Login handleLogin={handleLogin} />
-          }
-        />
-
-        {/* Protected Routes */}
+        <Route path="/" element={<Login handleLogin={handleLogin} />} />
         <Route
           path="/dashboard"
           element={
-            isLoggedIn ? (
-              <Dashboard userDetails={userDetails} handleLogout={handleLogout} />
-            ) : (
-              <Navigate to="/" />
-            )
+            <ProtectedRoute validateToken={validateToken}>
+              <Dashboard handleLogout={handleLogout} token={token} />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/view-database"
           element={
-            isLoggedIn ? <ViewDatabase handleLogout={handleLogout} /> : <Navigate to="/" />
+            <ProtectedRoute validateToken={validateToken}>
+              <ViewDatabase handleLogout={handleLogout} token={token} />
+            </ProtectedRoute>
           }
         />
         <Route
-          path="/download-package"
+          path="/search-for-package"
           element={
-            isLoggedIn ? <DownloadPackage handleLogout={handleLogout} /> : <Navigate to="/" />
+            <ProtectedRoute validateToken={validateToken}>
+              <DownloadPackage handleLogout={handleLogout} token={token} />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/upload-package/*"
           element={
-            isLoggedIn ? <Upload handleLogout={handleLogout} /> : <Navigate to="/" />
+            <ProtectedRoute validateToken={validateToken}>
+              <Upload handleLogout={handleLogout} token={token} />
+            </ProtectedRoute>
           }
         >
-          <Route
-            path="external-package"
-            element={
-              isLoggedIn ? <ExternalPackage handleLogout={handleLogout} /> : <Navigate to="/" />
-            }
-          />
-          <Route
-            path="internal-package"
-            element={
-              isLoggedIn ? <InternalPackage handleLogout={handleLogout} /> : <Navigate to="/" />
-            }
-          />
+          <Route path="external-package" element={<ExternalPackage />} />
+          <Route path="internal-package" element={<InternalPackage />} />
         </Route>
         <Route
           path="/account"
           element={
-            isLoggedIn ? (
-              <Account userDetails={userDetails} handleLogout={handleLogout} />
-            ) : (
-              <Navigate to="/" />
-            )
+            <ProtectedRoute validateToken={validateToken}>
+              <Account handleLogout={handleLogout} token={token} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/view-package"
+          element={<Navigate to="/view-database" />}
+        />
+        <Route
+          path="/view-package/:id"
+          element={
+            <ProtectedRoute validateToken={validateToken}>
+              <ViewPackage handleLogout={handleLogout} token={token} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-page"
+          element={
+            <AdminProtectedRoute isAdmin={isAdmin}>
+              <AdminPage handleLogout={handleLogout} token={token} />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/create-new-user"
+          element={
+            <AdminProtectedRoute isAdmin={isAdmin}>
+              <CreateUser handleLogout={handleLogout} token={token} />
+            </AdminProtectedRoute>
+          }
+        />
+      <Route
+          path="/reset-registry"
+          element={
+            <AdminProtectedRoute isAdmin={isAdmin}>
+              <ResetRegistry handleLogout={handleLogout} />
+            </AdminProtectedRoute>
           }
         />
       </Routes>

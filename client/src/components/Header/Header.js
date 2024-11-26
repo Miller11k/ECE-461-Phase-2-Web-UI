@@ -41,7 +41,7 @@ const Header = ({ handleLogout }) => {
         <div className={`dropdown-menu ${menuOpen ? 'open' : ''}`} onClick={(e) => e.stopPropagation()}>
           <Link to="/view-database" className="dropdown-item">View The Database</Link>
           <Link to="/upload-package" className="dropdown-item">Upload Package</Link>
-          <Link to="/download-package" className="dropdown-item">Download Package</Link>
+          <Link to="/search-for-package" className="dropdown-item">Search For A Package</Link>
           <Link to="/account" className="dropdown-item">Account Settings</Link>
           <div onClick={handleLogout} className="dropdown-item logout">Logout</div>
         </div>

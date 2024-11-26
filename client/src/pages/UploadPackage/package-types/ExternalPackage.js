@@ -18,8 +18,8 @@ function ExternalPackage() {
   const REGION = process.env.REACT_APP_AWS_REGION;
 
   AWS.config.update({
-    accessKeyId: process.env.REACT_APP_S3_IAM_ACCESS_KEY_ID,
-    secretAccessKey: process.env.REACT_APP_S3_IAM_SECRET_KEY,
+    accessKeyId: process.env.REACT_APP_IAM_ACCESS_KEY_ID,
+    secretAccessKey: process.env.REACT_APP_IAM_SECRET_KEY,
     region: REGION,
   });
 
