@@ -31,3 +31,6 @@ coverage/
 # Allow specific files or directories (customize as needed)
 !src/my-custom-file.js
 !src/some-folder/
+
+# Ignore DS_Store
+.DS_Store
