@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import AWS from "aws-sdk";
+import axios from "axios";
 import './InternalPackage.css';
 
 function InternalPackage() {
@@ -8,38 +8,38 @@ function InternalPackage() {
   const [version1, setVersion1] = useState('');
   const [version2, setVersion2] = useState('');
   const [version3, setVersion3] = useState('');
+  const [debloat, setDebloat] = useState(false); // New state for debloat option
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // New loading state
-  const [isDragging, setIsDragging] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const S3_BUCKET = process.env.REACT_APP_S3_BUCKET_NAME;
-  const REGION = process.env.REACT_APP_AWS_REGION;
+  const authToken = localStorage.getItem('authToken');
+  const apiPort = process.env.REACT_APP_API_PORT || 4010;
+  const apiLink = process.env.REACT_APP_API_URL || 'http://localhost';
+  const apiUrl = `${apiLink}:${apiPort}/package`;
 
-  AWS.config.update({
-    accessKeyId: process.env.REACT_APP_IAM_ACCESS_KEY_ID,
-    secretAccessKey: process.env.REACT_APP_IAM_SECRET_KEY,
-    region: REGION,
-  });
+  // Convert file to Base64
+  const toBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result.split(',')[1]); // Remove Base64 prefix
+      reader.onerror = (error) => reject(error);
+    });
 
-  const s3 = new AWS.S3();
-
-  const uploadFile = async () => {
+  const uploadPackage = async () => {
     if (!zipFile) {
       setError('Please upload a zip file.');
-      setSuccess('');
       return;
     }
 
     if (!packageName.trim()) {
       setError('Please enter a package name.');
-      setSuccess('');
       return;
     }
 
     if (!version1 || !version2 || !version3) {
-      setError('Please enter a valid version number.');
-      setSuccess('');
+      setError('Please enter a complete version number (e.g., 1.0.0).');
       return;
     }
 
@@ -49,130 +49,129 @@ function InternalPackage() {
       !Number.isInteger(Number(version3))
     ) {
       setError('Version numbers must be integers.');
-      setSuccess('');
       return;
     }
 
-    const sanitizedPackageName = packageName.trim().replace(/[^a-zA-Z0-9\-_.]/g, '_');
+    const base64Content = await toBase64(zipFile);
 
-    const params = {
-      Bucket: S3_BUCKET,
-      Key: `${sanitizedPackageName}/v${version1}.${version2}.${version3}/package.zip`,
-      Body: zipFile,
+    const payload = {
+      Name: packageName.trim(),
+      Version: `${version1}.${version2}.${version3}`,
+      Content: base64Content,
+      debloat, // Top-level field for debloat
     };
 
-    setIsLoading(true); // Start loading
+    setIsLoading(true);
     setError('');
     setSuccess('');
 
     try {
-      await s3.putObject(params).promise();
-      setSuccess('File uploaded successfully.');
-      setZipFile(null);
-      setPackageName('');
-      setVersion1('');
-      setVersion2('');
-      setVersion3('');
+      const response = await axios.post(apiUrl, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Authorization': authToken,
+        },
+      });
+
+      if (response.status === 201) {
+        setSuccess('Package uploaded successfully.');
+        resetForm();
+      } else {
+        setError('Upload failed. Please try again.');
+      }
     } catch (err) {
-      console.error(err);
-      setError('File upload failed.');
-    } finally {
-      setIsLoading(false); // End loading
+      setError(err.response?.data?.error || 'Failed to upload package. Please check the API and try again.');
+      console.error('Error uploading package:', err.response?.data || err);
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    validateFile(file);
-  };
-
-  const validateFile = (file) => {
-    if (file && file.type === 'application/zip') {
-      setZipFile(file);
-      setError('');
-    } else {
-      setError('Please upload a valid zip file.');
-      setSuccess('');
-    }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    validateFile(file);
+  // Reset form
+  const resetForm = () => {
+    setZipFile(null);
+    setPackageName('');
+    setVersion1('');
+    setVersion2('');
+    setVersion3('');
+    setDebloat(false);
   };
 
   return (
     <div className="container">
       <h2>Upload Internal Package</h2>
-      <form onSubmit={(e) => e.preventDefault()} className="form">
-        <label
-          className={`file-drop ${isDragging ? 'dragging' : ''}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          {zipFile ? zipFile.name : 'Drag and drop a zip file here, or click to select'}
-          <input
-            type="file"
-            accept=".zip"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
-        </label>
+      <div className="form">
+        <div className="file-drop">
+          <input type="file" onChange={(e) => setZipFile(e.target.files[0])} />
+          {zipFile ? <p>{zipFile.name}</p> : <p>Drag and drop your zip file here</p>}
+        </div>
+
         <div className="form-group">
-          <label>Package Name:</label>
+          <label>Package Name</label>
           <input
             type="text"
+            placeholder="Enter package name"
             value={packageName}
             onChange={(e) => setPackageName(e.target.value)}
-            required
           />
         </div>
+
+        {/* Version Input Box */}
         <div className="form-group version-input">
-          <label>Version:</label>
+          <label>Version</label>
           <div className="version-inputs">
             <input
-              type="text"
+              type="number"
               value={version1}
               onChange={(e) => setVersion1(e.target.value)}
-              required
+              maxLength={2}
+              placeholder="1"
             />
             <span>.</span>
             <input
-              type="text"
+              type="number"
               value={version2}
               onChange={(e) => setVersion2(e.target.value)}
-              required
+              maxLength={2}
+              placeholder="0"
             />
             <span>.</span>
             <input
-              type="text"
+              type="number"
               value={version3}
               onChange={(e) => setVersion3(e.target.value)}
-              required
+              maxLength={2}
+              placeholder="0"
             />
           </div>
         </div>
-        {error && <p className="error">{error}</p>}
-        {success && <p className="success">{success}</p>}
-        {isLoading && <p>Uploading...</p>} {/* Show loading message */}
+
+        <div className="form-group">
+          <label className="checkbox-container">
+            <input
+              type="checkbox"
+              checked={debloat}
+              onChange={() => setDebloat(!debloat)}
+            />
+            <span className="checkbox-checkmark"></span>
+            Debloat
+          </label>
+        </div>
+
+        {error && <div className="error">{error}</div>}
+        {success && <div className="success">{success}</div>}
+
         <div className="button-group">
-          <button onClick={uploadFile} type="button" disabled={isLoading}>
-            {'Submit'}
+          <button onClick={uploadPackage} disabled={isLoading}>
+            {isLoading ? "Uploading..." : "Upload Package"}
+          </button>
+          <button
+            className="delete-button"
+            onClick={resetForm}
+            disabled={isLoading || !zipFile}
+          >
+            Reset Form
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

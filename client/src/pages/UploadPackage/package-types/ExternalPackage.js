@@ -1,63 +1,38 @@
 import React, { useState } from "react";
-import AWS from "aws-sdk";
+import axios from "axios";
 import './ExternalPackage.css';
 
 function ExternalPackage() {
-  const [zipFile, setZipFile] = useState(null);
   const [packageName, setPackageName] = useState('');
   const [packageLink, setPackageLink] = useState('');
   const [version1, setVersion1] = useState('');
   const [version2, setVersion2] = useState('');
   const [version3, setVersion3] = useState('');
+  const [debloat, setDebloat] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // Loading state
-  const [isDragging, setIsDragging] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const S3_BUCKET = process.env.REACT_APP_S3_BUCKET_NAME;
-  const REGION = process.env.REACT_APP_AWS_REGION;
+  const authToken = localStorage.getItem('authToken');
+  const apiPort = process.env.REACT_APP_API_PORT || 4010;
+  const apiLink = process.env.REACT_APP_API_URL || 'http://localhost';
+  const apiUrl = `${apiLink}:${apiPort}/package`;
 
-  AWS.config.update({
-    accessKeyId: process.env.REACT_APP_IAM_ACCESS_KEY_ID,
-    secretAccessKey: process.env.REACT_APP_IAM_SECRET_KEY,
-    region: REGION,
-  });
+  const isValidGithubLink = (url) => /^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(url);
 
-  const s3 = new AWS.S3();
-
-  const isValidGithubLink = (url) => {
-    const regex = /^https:\/\/github\.com\/.+\/.+/;
-    return regex.test(url);
-  };
-
-  const uploadFile = async () => {
-    if (!zipFile) {
-      setError('Please upload a zip file.');
-      setSuccess('');
-      return;
-    }
-
+  const uploadPackage = async () => {
     if (!packageName.trim()) {
       setError('Please enter a package name.');
-      setSuccess('');
       return;
     }
 
-    if (!packageLink.trim()) {
-      setError('Please enter a package link.');
-      setSuccess('');
-      return;
-    }
-
-    if (!isValidGithubLink(packageLink.trim())) {
-      setError('Please enter a valid GitHub link.');
-      setSuccess('');
+    if (!packageLink.trim() || !isValidGithubLink(packageLink.trim())) {
+      setError('Please enter a valid GitHub link (e.g., https://github.com/owner/repo).');
       return;
     }
 
     if (!version1 || !version2 || !version3) {
-      setError('Please enter a valid version number.');
-      setSuccess('');
+      setError('Please enter a complete version number (e.g., 1.0.0).');
       return;
     }
 
@@ -67,87 +42,54 @@ function ExternalPackage() {
       !Number.isInteger(Number(version3))
     ) {
       setError('Version numbers must be integers.');
-      setSuccess('');
       return;
     }
 
-    const sanitizedPackageName = packageName.trim().replace(/[^a-zA-Z0-9\-_.]/g, '_');
-    const params = {
-      Bucket: S3_BUCKET,
-      Key: `${sanitizedPackageName}/v${version1}.${version2}.${version3}/package.zip`,
-      Body: zipFile,
+    const payload = {
+      Name: packageName.trim(),
+      Version: `${version1}.${version2}.${version3}`,
+      URL: packageLink.trim(),
+      debloat,
     };
 
-    setIsLoading(true); // Start loading
+    setIsLoading(true);
     setError('');
     setSuccess('');
 
     try {
-      await s3.putObject(params).promise();
-      setSuccess('File uploaded successfully.');
-      setZipFile(null);
-      setPackageName('');
-      setPackageLink('');
-      setVersion1('');
-      setVersion2('');
-      setVersion3('');
+      const response = await axios.post(apiUrl, payload, {
+        headers: {
+          'X-Authorization': authToken,
+        },
+      });
+
+      if (response.status === 201) {
+        setSuccess('Package uploaded successfully.');
+        resetForm();
+      } else {
+        setError('Upload failed. Please try again.');
+      }
     } catch (err) {
-      console.error(err);
-      setError('File upload failed.');
+      setError('Failed to upload package. Please check the API and try again.');
+      console.error('Error uploading package:', err);
     } finally {
-      setIsLoading(false); // End loading
+      setIsLoading(false);
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    validateFile(file);
-  };
-
-  const validateFile = (file) => {
-    if (file && file.type === 'application/zip') {
-      setZipFile(file);
-      setError('');
-    } else {
-      setError('Please upload a valid zip file.');
-      setSuccess('');
-    }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    validateFile(file);
+  const resetForm = () => {
+    setPackageName('');
+    setPackageLink('');
+    setVersion1('');
+    setVersion2('');
+    setVersion3('');
+    setDebloat(false);
   };
 
   return (
     <div className="container">
       <h2>Upload External Package</h2>
       <form onSubmit={(e) => e.preventDefault()} className="form">
-        <label
-          className={`file-drop ${isDragging ? 'dragging' : ''}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          {zipFile ? zipFile.name : 'Drag and drop a zip file here, or click to select'}
-          <input
-            type="file"
-            accept=".zip"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
-        </label>
         <div className="form-group">
           <label>Package Name:</label>
           <input
@@ -158,7 +100,7 @@ function ExternalPackage() {
           />
         </div>
         <div className="form-group">
-          <label>Package Link:</label>
+          <label>Package Link (GitHub):</label>
           <input
             type="text"
             value={packageLink}
@@ -166,42 +108,59 @@ function ExternalPackage() {
             required
           />
         </div>
+
+        {/* Version Input Box */}
         <div className="form-group version-input">
-          <label>Version:</label>
+          <label>Version</label>
           <div className="version-inputs">
             <input
-              type="text"
+              type="number"
               value={version1}
               onChange={(e) => setVersion1(e.target.value)}
-              required
+              maxLength={2}
+              placeholder="1"
             />
             <span>.</span>
             <input
-              type="text"
+              type="number"
               value={version2}
               onChange={(e) => setVersion2(e.target.value)}
-              required
+              maxLength={2}
+              placeholder="0"
             />
             <span>.</span>
             <input
-              type="text"
+              type="number"
               value={version3}
               onChange={(e) => setVersion3(e.target.value)}
-              required
+              maxLength={2}
+              placeholder="0"
             />
           </div>
         </div>
+
+        <div className="form-group">
+          <label className="checkbox-container">
+            <input
+              type="checkbox"
+              checked={debloat}
+              onChange={(e) => setDebloat(e.target.checked)}
+            />
+            <span className="checkbox-checkmark"></span>
+            Debloat
+          </label>
+        </div>
+
         {error && <p className="error">{error}</p>}
         {success && <p className="success">{success}</p>}
-        {isLoading && <p>Uploading...</p>}
         <div className="button-group">
-          <button onClick={uploadFile} type="button" disabled={isLoading}>
-            {'Submit'}
+          <button onClick={uploadPackage} type="button" disabled={isLoading}>
+            {isLoading ? 'Uploading...' : 'Submit'}
           </button>
         </div>
       </form>
     </div>
-  );
+  );  
 }
 
 export default ExternalPackage;

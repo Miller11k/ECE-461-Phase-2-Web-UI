@@ -4,7 +4,7 @@ import Login from './pages/Login/Login';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Upload from './pages/UploadPackage/UploadPackage';
 import ViewDatabase from './pages/ViewDatabase/ViewDatabase';
-import DownloadPackage from './pages/SearchForPackage/searchForPackage';
+import SearchForPackage from './pages/SearchForPackage/searchForPackage';
 import ExternalPackage from './pages/UploadPackage/package-types/ExternalPackage';
 import InternalPackage from './pages/UploadPackage/package-types/InternalPackage';
 import ViewPackage from './pages/ViewPage/ViewPackage';
@@ -147,7 +147,7 @@ const App = () => {
           path="/search-for-package"
           element={
             <ProtectedRoute validateToken={validateToken}>
-              <DownloadPackage handleLogout={handleLogout} token={token} />
+              <SearchForPackage handleLogout={handleLogout} token={token} />
             </ProtectedRoute>
           }
         />

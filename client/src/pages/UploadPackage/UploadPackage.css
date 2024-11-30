@@ -25,7 +25,6 @@ html, body {
 .login-container {
   display: flex;
   flex-direction: column; /* Stacks header and login box vertically */
-  align-items: center; /* Centers items horizontally */
   justify-content: center; /* Centers items vertically */
   height: 100vh; /* Full screen height */
   text-align: center;
